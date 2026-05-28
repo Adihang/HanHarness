@@ -58,10 +58,13 @@ class OhmoGatewayService:
                 ",".join(self._config.allowed_remote_admin_commands),
             )
         self._bus = MessageBus()
+        self._manager = ChannelManager(build_channel_manager_config(self._config), self._bus)
         self._runtime_pool = OhmoSessionRuntimePool(
             cwd=self._cwd,
             workspace=self._workspace,
             provider_profile=self._config.provider_profile,
+            create_feishu_group=self.create_group_for_user,
+            publish_group_welcome=self.publish_group_welcome,
         )
         self._stop_event: asyncio.Event | None = None
         self._restart_requested = False
@@ -69,8 +72,11 @@ class OhmoGatewayService:
             bus=self._bus,
             runtime_pool=self._runtime_pool,
             restart_gateway=self.request_restart,
+            workspace=root,
+            feishu_group_policy=str(
+                self._config.channel_configs.get("feishu", {}).get("group_policy", "managed_or_mention")
+            ),
         )
-        self._manager = ChannelManager(build_channel_manager_config(self._config), self._bus)
 
     @property
     def pid_file(self) -> Path:
@@ -84,6 +90,13 @@ class OhmoGatewayService:
     def state_file(self) -> Path:
         return get_state_path(self._workspace)
 
+    def _channel_last_error(self) -> str | None:
+        for name, channel in self._manager.channels.items():
+            error = getattr(channel, "last_error", None)
+            if error:
+                return f"{name}: {error}"
+        return None
+
     def write_state(self, *, running: bool, last_error: str | None = None) -> None:
         state = GatewayState(
             running=running,
@@ -91,7 +104,7 @@ class OhmoGatewayService:
             active_sessions=self._runtime_pool.active_sessions,
             provider_profile=self._config.provider_profile,
             enabled_channels=self._config.enabled_channels,
-            last_error=last_error,
+            last_error=last_error or self._channel_last_error(),
         )
         self.state_file.write_text(state.model_dump_json(indent=2) + "\n", encoding="utf-8")
 
@@ -113,6 +126,34 @@ class OhmoGatewayService:
         await asyncio.sleep(0.75)
         if self._stop_event is not None:
             self._stop_event.set()
+
+    async def create_group(self, message, name: str) -> str:
+        """Create a managed group through the active channel implementation."""
+        if message.channel != "feishu":
+            raise RuntimeError(f"{message.channel} does not support managed group creation.")
+        return await self.create_group_for_user(str(message.sender_id), name)
+
+    async def create_group_for_user(self, user_open_id: str, name: str) -> str:
+        """Create a managed Feishu group for a user open_id."""
+        channel = self._manager.get_channel("feishu")
+        if channel is None:
+            raise RuntimeError("Feishu channel is not enabled.")
+        creator = getattr(channel, "create_managed_group", None)
+        if creator is None:
+            raise RuntimeError("Feishu channel does not support managed group creation.")
+        result = creator(user_open_id=str(user_open_id), name=name)
+        return str(await result if asyncio.iscoroutine(result) else result)
+
+    async def publish_group_welcome(self, chat_id: str, content: str, owner_open_id: str) -> None:
+        """Send a welcome message to a newly created managed group."""
+        await self._bus.publish_outbound(
+            OutboundMessage(
+                channel="feishu",
+                chat_id=chat_id,
+                content=content,
+                metadata={"chat_type": "group", "_session_key": f"feishu:{chat_id}:{owner_open_id}"},
+            )
+        )
 
     def _exec_restart(self) -> None:
         root = str(get_workspace_root(self._workspace))
@@ -178,8 +219,18 @@ class OhmoGatewayService:
             with contextlib.suppress(NotImplementedError):
                 loop.add_signal_handler(sig, _stop)
 
+        async def _state_heartbeat() -> None:
+            while not stop_event.is_set():
+                self.write_state(running=True)
+                await asyncio.sleep(5.0)
+
+        state_task = asyncio.create_task(_state_heartbeat(), name="ohmo-gateway-state")
+
         try:
             await stop_event.wait()
+        except Exception as exc:
+            self.write_state(running=False, last_error=str(exc))
+            raise
         finally:
             self._bridge.stop()
             bridge_task.cancel()
@@ -188,6 +239,10 @@ class OhmoGatewayService:
                 await bridge_task
             with contextlib.suppress(asyncio.CancelledError):
                 await manager_task
+            if not state_task.done():
+                state_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await state_task
             if not restart_notice_task.done():
                 restart_notice_task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):

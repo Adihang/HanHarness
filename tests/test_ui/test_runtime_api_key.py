@@ -55,6 +55,12 @@ def test_refresh_runtime_client_rebuilds_system_prompt_for_language_setting(monk
         def set_model(self, model):
             captured["model"] = model
 
+        def set_effort(self, effort):
+            captured["effort"] = effort
+
+        def set_permission_checker(self, _checker):
+            return None
+
         def set_system_prompt(self, prompt):
             captured["prompt"] = prompt
 
@@ -78,6 +84,7 @@ def test_refresh_runtime_client_rebuilds_system_prompt_for_language_setting(monk
         cwd="/tmp/demo",
         extra_skill_dirs=(),
         extra_plugin_roots=(),
+        include_project_memory=True,
         current_settings=lambda: settings,
         mcp_manager=SimpleNamespace(list_statuses=lambda: []),
         app_state=SimpleNamespace(set=lambda **_kwargs: None),
@@ -96,4 +103,5 @@ def test_refresh_runtime_client_rebuilds_system_prompt_for_language_setting(monk
     refresh_runtime_client(bundle)
 
     assert captured["model"] == "gpt-5.4"
+    assert captured["effort"] == "medium"
     assert captured["prompt"] == "Always respond in **Korean**."

@@ -269,6 +269,14 @@ def _prompt_channels(existing: GatewayConfig) -> tuple[list[str], dict[str, dict
                 default_value=str(prior.get("group_policy", "mention")),
             )
         elif channel == "feishu":
+            config["domain"] = _select_from_menu(
+                "Feishu domain:",
+                [
+                    ("https://open.feishu.cn", "Feishu (China)"),
+                    ("https://open.larksuite.com", "Lark (International)"),
+                ],
+                default_value=str(prior.get("domain", "https://open.feishu.cn")),
+            )
             config["app_id"] = _text_prompt(
                 "Feishu app id",
                 default=str(prior.get("app_id", "")),
@@ -288,6 +296,29 @@ def _prompt_channels(existing: GatewayConfig) -> tuple[list[str], dict[str, dict
             config["react_emoji"] = _text_prompt(
                 "Feishu reaction emoji",
                 default=str(prior.get("react_emoji", "OK")),
+            )
+            config["group_policy"] = _select_from_menu(
+                "Feishu group policy:",
+                [
+                    ("managed_or_mention", "Managed groups open; other groups require @mention"),
+                    ("mention", "Always require @mention in groups"),
+                    ("open", "Always reply to group messages"),
+                ],
+                default_value=str(prior.get("group_policy", "managed_or_mention")),
+            )
+            prior_bot_names = prior.get("bot_names", ["ohmo", "openclaw", "openharness"])
+            if isinstance(prior_bot_names, str):
+                prior_bot_names_default = prior_bot_names
+            else:
+                prior_bot_names_default = ",".join(str(item) for item in prior_bot_names)
+            bot_names_raw = _text_prompt(
+                "Feishu bot mention names (comma separated)",
+                default=prior_bot_names_default,
+            )
+            config["bot_names"] = [item.strip() for item in bot_names_raw.split(",") if item.strip()]
+            config["bot_open_id"] = _text_prompt(
+                "Feishu bot open_id for exact mention detection (optional)",
+                default=str(prior.get("bot_open_id", "")),
             )
         configs[channel] = config
     return enabled, configs

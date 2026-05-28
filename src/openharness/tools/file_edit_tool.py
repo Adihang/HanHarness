@@ -60,6 +60,16 @@ class FileEditTool(BaseTool):
         else:
             updated = original.replace(arguments.old_str, arguments.new_str, 1)
 
+        approval_prompt = context.metadata.get("edit_approval_prompt") if context.metadata else None
+        if approval_prompt is not None:
+            diff_text, added, removed = _compute_diff(str(path), original, updated)
+            reply = await approval_prompt(str(path), diff_text, added, removed)
+            if reply == "reject":
+                return ToolResult(output=f"Edit rejected by user: {path}", is_error=True)
+            path.write_text(updated, encoding="utf-8")
+            stats = f"  ({_ANSI_GREEN}+{added}{_ANSI_RESET} {_ANSI_RED}-{removed}{_ANSI_RESET})"
+            return ToolResult(output=f"Updated {path}{stats}")
+
         path.write_text(updated, encoding="utf-8")
         return ToolResult(output=f"Updated {path}")
 
@@ -116,3 +126,23 @@ def _closest_line_hint(*, original: str, old_str: str) -> str | None:
     if best_match is None:
         return None
     return best_match if len(best_match) <= 240 else f"{best_match[:240]}..."
+
+
+def _compute_diff(filename: str, original: str, updated: str) -> tuple[str, int, int]:
+    diff_lines = list(
+        difflib.unified_diff(
+            original.splitlines(keepends=True),
+            updated.splitlines(keepends=True),
+            fromfile=filename,
+            tofile=filename,
+            lineterm="",
+        )
+    )
+    added = sum(1 for line in diff_lines if line.startswith("+") and not line.startswith("+++"))
+    removed = sum(1 for line in diff_lines if line.startswith("-") and not line.startswith("---"))
+    return "".join(diff_lines), added, removed
+
+
+_ANSI_GREEN = "\033[32m"
+_ANSI_RED = "\033[31m"
+_ANSI_RESET = "\033[0m"
