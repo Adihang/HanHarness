@@ -19,7 +19,7 @@ jobs:
           - os: macos-14
             platform: macos-arm64
             archive_cmd: zip -r HanPlanet-CLI-macos-arm64.zip dist/HanPlanet-CLI
-          - os: windows-latest
+          - os: windows-2022
             platform: windows-x64
             archive_cmd: Compress-Archive -Path dist\HanPlanet-CLI -DestinationPath HanPlanet-CLI-windows-x64.zip
 
