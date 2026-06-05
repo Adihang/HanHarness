@@ -23,7 +23,6 @@ from openharness.memory import list_memory_files
 from openharness.plugins import load_plugins
 from openharness.skills import load_skill_registry
 from openharness.engine.messages import ConversationMessage, ImageBlock, TextBlock
-from openharness.engine.messages import ConversationMessage, ImageBlock, TextBlock
 from openharness.themes import list_themes
 from openharness.engine.stream_events import (
     AssistantTextDelta,
