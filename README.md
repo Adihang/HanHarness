@@ -8,9 +8,9 @@
 
 ### 요구사항
 
-- Python 3.10+
+- Python 3.11+
 - [uv](https://docs.astral.sh/uv/) — 패키지 관리
-- Node.js 18+ — TUI 프론트엔드 빌드
+- Node.js 22 권장 — TUI 프론트엔드 빌드 및 GitHub Actions 빌드 기준
 
 ### 개발 환경 세팅
 
@@ -41,14 +41,31 @@ pipx upgrade HanPlanet-CLI
 pipx uninstall HanPlanet-CLI
 ```
 
-설치 후 `hanplanet` or `oh` 명령어로 실행.
-Supports **Claude / OpenAI / Copilot / Codex / Moonshot(Kimi) / GLM / MiniMax / NVIDIA NIM** and any compatible endpoint.
-설치 후 `hanplanet` or `oh` 명령어로 실행.
+설치 후 `hanplanet` 또는 `oh` 명령어로 실행한다.
+Claude / OpenAI / Copilot / Codex / Moonshot(Kimi) / GLM / MiniMax / NVIDIA NIM 및 OpenAI-compatible / Anthropic-compatible 엔드포인트를 지원한다.
 
 ### Python 없이 실행하는 standalone 패키징
 
 대상 PC에 Python, pip, pipx, Node.js 없이 실행할 수 있는 패키지를 만든다.
 Node 런타임은 기본으로 같이 번들된다.
+
+로컬에서 현재 플랫폼용 standalone 빌드만 만들려면:
+
+```bash
+uv sync --extra dev --extra standalone
+uv run python scripts/build_standalone.py --clean
+```
+
+생성 위치:
+
+```text
+dist/HanPlanet-CLI/
+  hanplanet
+  ohmo
+  _internal/
+```
+
+macOS에서 HDD 배포용 zip까지 만들려면:
 
 ```bash
 uv sync --extra dev --extra standalone
@@ -65,12 +82,6 @@ uv run python scripts/package_hanplanet_cli_hdd.py
 
 ```bash
 uv run python scripts/package_hanplanet_cli_hdd.py --skip-frontend-install
-```
-
-일반 standalone 빌드만 필요하면:
-
-```bash
-uv run python scripts/build_standalone.py --clean
 ```
 
 자세한 내용은 `docs/STANDALONE.md` 참고.
@@ -673,8 +684,8 @@ OpenAI SDK 예외에서 `str(exc)`가 빈 문자열을 반환하는 경우(`"API
 ```
 git tag v*.*.* && git push origin v*.*.*
   │
-  ├─ Build (macos-14)      → HanPlanet-CLI-macos-arm64.zip           ─┐
-  ├─ Build (windows-latest) → HanPlanet-CLI-windows-x64.zip          ─┤
+  ├─ Build (macos-14)     → HanPlanet-CLI-macos-arm64.zip            ─┐
+  ├─ Build (windows-2022) → HanPlanet-CLI-windows-x64.zip            ─┤
   │                                                            │
   ├─ Release (태그일 때만)  → GitHub Releases에 두 zip 첨부   │
   │                                                            │
@@ -716,6 +727,7 @@ uv run python scripts/build_standalone.py --clean --skip-frontend-install
 | HDD 최종 저장 파일 | `HanPlanet-CLI-macos-arm64_YYYYMMDDHHMM.zip` | `HanPlanet-CLI-windows-x64_YYYYMMDDHHMM.zip` |
 
 즉 GitHub 쪽 산출물 이름은 그대로 유지하고, self-hosted `Deploy to HDD` job에서 HDD로 복사할 때만 배포 시각 suffix를 붙인다.
+Actions artifact는 30일 동안 보관된다.
 
 Windows artifact(`HanPlanet-CLI-windows-x64.zip`) 안의 실행 파일은 `dist\HanPlanet-CLI\hanplanet.exe` 이다.
 Windows는 macOS/Linux처럼 shell alias가 자동으로 생기지 않으므로 `hanplanet.exe`를 직접 실행한다.
@@ -734,9 +746,9 @@ HDD에 복사된 파일은 배포 시각을 붙여 저장된다. 따라서 다�
 #### 정식 배포 절차
 
 ```bash
-# pyproject.toml 버전 올린 뒤
-git tag v0.1.8
-git push origin v0.1.8
+# pyproject.toml 버전 올린 뒤, 같은 버전으로 태그 생성
+git tag v0.1.9
+git push origin v0.1.9
 # → 빌드 완료 후 GitHub Release 생성 + HDD 자동 업데이트
 ```
 
@@ -793,6 +805,19 @@ git remote add upstream https://github.com/HKUDS/OpenHarness.git
 
 git fetch upstream
 git merge upstream/main
+```
+
+현재 포크의 원격 기준:
+
+```text
+origin   https://github.com/Adihang/HanPlanet-CLI.git
+upstream https://github.com/HKUDS/OpenHarness.git
+```
+
+로컬에 예전 저장소 URL(`Adihang/HanHarness`)이 남아 있으면 다음처럼 교체한다.
+
+```bash
+git remote set-url origin https://github.com/Adihang/HanPlanet-CLI.git
 ```
 
 ### 충돌 발생 시 우선순위 원칙
