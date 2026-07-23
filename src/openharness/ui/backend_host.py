@@ -1983,7 +1983,7 @@ class ReactBackendHost:
             api_format="openai",
             auth_source="openai_api_key",
             default_model="",
-            base_url="https://hanplanet.com/ai/v1",
+            base_url="https://www.hanplanet.com/ai/v1",
             credential_slot="hanplanet",
         )
         manager.upsert_profile("hanplanet", profile)
@@ -2062,7 +2062,7 @@ class ReactBackendHost:
                 return None
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.post(
-                    "https://hanplanet.com/api/sync/auth/refresh",
+                    "https://www.hanplanet.com/api/sync/auth/refresh",
                     json={"refresh_token": refresh_token},
                 )
             if resp.status_code != 200:
@@ -2078,18 +2078,18 @@ class ReactBackendHost:
     async def _fetch_hanplanet_models(api_key: str) -> list[str]:
         try:
             import httpx
-            async with httpx.AsyncClient(timeout=10) as client:
+            async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
                 resp = await client.get(
-                    "https://hanplanet.com/ai/v1/models",
+                    "https://www.hanplanet.com/ai/v1/models",
                     headers={"Authorization": f"Bearer {api_key}"},
                 )
             if resp.status_code == 401:
                 new_key = await ReactBackendHost._hanplanet_refresh_token()
                 if not new_key:
                     return []
-                async with httpx.AsyncClient(timeout=10) as client:
+                async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
                     resp = await client.get(
-                        "https://hanplanet.com/ai/v1/models",
+                        "https://www.hanplanet.com/ai/v1/models",
                         headers={"Authorization": f"Bearer {new_key}"},
                     )
             body = resp.json()

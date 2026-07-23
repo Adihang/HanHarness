@@ -389,9 +389,9 @@ flowchart LR
 원본의 PKCE 방식 대신 Hanplanet 서버(`hanplanet.com`)와 연동하는 폴링 기반 JWT 인증 흐름으로 교체.
 
 **인증 흐름:**
-1. 클라이언트가 `https://hanplanet.com/login/handrive?state=HEX&client_name=HanPlanet-CLI` 를 브라우저로 열기
+1. 클라이언트가 `https://www.hanplanet.com/login/handrive?state=HEX&client_name=HanPlanet-CLI` 를 브라우저로 열기
 2. 사용자가 브라우저에서 연결/취소 클릭
-3. 클라이언트가 `https://hanplanet.com/api/sync/auth/handrive-callback?state=HEX` 를 2초 간격으로 폴링
+3. 클라이언트가 `https://www.hanplanet.com/api/sync/auth/handrive-callback?state=HEX` 를 2초 간격으로 폴링
 4. 서버 응답:
    - `202` — 대기 중
    - `200 {"access_token": ..., "refresh_token": ...}` — 인증 완료
@@ -458,7 +458,7 @@ OAuth 또는 API키 입력 완료 시 `~/.openharness/settings.json`에 저장�
   "provider": "openai",
   "api_format": "openai",
   "auth_source": "openai_api_key",
-  "base_url": "https://hanplanet.com/ai/v1",
+  "base_url": "https://www.hanplanet.com/ai/v1",
   "credential_slot": "hanplanet"
 }
 ```
